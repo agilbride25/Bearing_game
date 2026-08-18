@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BEARING — Daily Geography Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B2B3C;
+    --deep:#08202D;
+    --parchment:#F2E8D5;
+    --parchment-dim:#E7DAC0;
+    --brass:#C89B3C;
+    --brass-bright:#E3B95A;
+    --teal:#1B4B5A;
+    --hot:#D9603B;
+    --cold:#3E7CA6;
+    --win:#3E8A63;
+    --line: rgba(11,43,60,0.15);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 20% -10%, rgba(200,155,60,0.12), transparent 55%),
+      var(--deep);
+    color:var(--parchment);
+    font-family:'IBM Plex Mono', monospace;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:28px 14px 60px;
+  }
+  .app{width:100%;max-width:460px;}
+
+  header{text-align:center;margin-bottom:18px;}
+  .eyebrow{
+    font-size:11px;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--brass-bright);opacity:.85;margin-bottom:6px;
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size:42px;
+    letter-spacing:.04em;
+    margin:0;
+    color:var(--parchment);
+  }
+  .sub{
+    font-size:12px;color:var(--parchment);opacity:.55;margin-top:6px;
+    line-height:1.5;
+  }
+
+  .compass-wrap{
+    display:flex;justify-content:center;align-items:center;
+    margin:22px 0 18px;
+    position:relative;
+  }
+  #compass{width:190px;height:190px;}
+  .needle{ transform-origin:100px 100px; transition: transform 1.1s cubic-bezier(.2,.9,.25,1); }
+  .compass-readout{
+    position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);
+    background:var(--deep);
+    padding:2px 10px;
+    font-size:12px;color:var(--brass-bright);
+    border:1px solid var(--brass);
+    border-radius:20px;
+    white-space:nowrap;
+  }
+
+  .card{
+    background:var(--parchment);
+    color:var(--ink);
+    border-radius:10px;
+    padding:16px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.35);
+  }
+
+  .input-row{position:relative;}
+  input[type=text]{
+    width:100%;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:15px;
+    padding:12px 14px;
+    border:1.5px solid var(--ink);
+    border-radius:6px;
+    background:#fff;
+    color:var(--ink);
+    outline:none;
+  }
+  input[type=text]:focus{border-color:var(--brass);box-shadow:0 0 0 3px rgba(200,155,60,0.25);}
+  .autocomplete{
+    position:absolute;top:calc(100% + 4px);left:0;right:0;
+    background:#fff;border:1px solid var(--line);border-radius:6px;
+    max-height:190px;overflow-y:auto;
+    box-shadow:0 8px 20px rgba(0,0,0,0.15);
+    z-index:5;
+  }
+  .autocomplete div{
+    padding:9px 12px;cursor:pointer;font-size:14px;
+  }
+  .autocomplete div:hover, .autocomplete div.active{background:var(--parchment-dim);}
+
+  .submit-btn{
+    margin-top:10px;width:100%;
+    background:var(--ink);color:var(--parchment);
+    border:none;border-radius:6px;
+    padding:11px;font-family:'IBM Plex Mono';font-weight:600;
+    font-size:13px;letter-spacing:.08em;text-transform:uppercase;
+    cursor:pointer;
+  }
+  .submit-btn:disabled{opacity:.4;cursor:not-allowed;}
+  .submit-btn:not(:disabled):hover{background:var(--teal);}
+
+  .guesses{margin-top:16px;display:flex;flex-direction:column;gap:8px;}
+  .guess-row{
+    display:grid;
+    grid-template-columns:22px 1fr auto auto;
+    align-items:center;
+    gap:10px;
+    padding:9px 10px;
+    border-radius:6px;
+    background:var(--parchment-dim);
+    font-size:13px;
+  }
+  .guess-row .n{opacity:.4;font-size:12px;}
+  .guess-row .name{font-weight:600;}
+  .guess-row .dist{font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .mini-arrow{width:20px;height:20px;flex-shrink:0;}
+  .guess-row.correct{background:var(--win);color:#fff;}
+  .guess-row.correct .dist{color:#fff;}
+
+  .msg{
+    margin-top:12px;text-align:center;font-size:13px;min-height:18px;
+    color:var(--teal);
+  }
+
+  .footer-row{
+    margin-top:18px;display:flex;gap:8px;justify-content:center;
+  }
+  .ghost-btn{
+    background:transparent;border:1px solid var(--brass);color:var(--brass-bright);
+    padding:8px 14px;border-radius:20px;font-family:'IBM Plex Mono';
+    font-size:12px;cursor:pointer;letter-spacing:.05em;
+  }
+  .ghost-btn:hover{background:rgba(200,155,60,0.12);}
+
+  .stats{
+    display:flex;justify-content:center;gap:22px;margin-top:16px;
+    font-size:11px;color:var(--parchment);opacity:.7;text-align:center;
+  }
+  .stats b{display:block;font-size:20px;color:var(--brass-bright);font-family:'Fraunces',serif;}
+
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--brass);color:var(--deep);padding:8px 16px;
+    border-radius:20px;font-size:12px;font-weight:600;
+    opacity:0;pointer-events:none;transition:opacity .25s;
+  }
+  .toast.show{opacity:1;}
+
+  .mode-tabs{
+    display:flex;justify-content:center;gap:6px;margin-bottom:18px;
+  }
+  .mode-tab{
+    background:transparent;border:1px solid var(--brass);color:var(--brass-bright);
+    padding:7px 16px;border-radius:20px;font-family:'IBM Plex Mono';
+    font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;
+    opacity:.6;
+  }
+  .mode-tab.active{background:var(--brass);color:var(--deep);opacity:1;font-weight:600;}
+
+  .refs-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;
+  }
+  .ref-card{
+    background:rgba(242,232,213,0.06);
+    border:1px solid rgba(200,155,60,0.35);
+    border-radius:8px;
+    padding:8px 4px 10px;
+    text-align:center;
+  }
+  .ref-card svg{width:64px;height:64px;}
+  .ref-name{font-size:10px;color:var(--parchment);opacity:.75;margin-top:2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ref-deg{font-size:11px;color:var(--brass-bright);margin-top:1px;}
+
+  .tries-left{
+    text-align:center;font-size:11px;color:var(--ink);opacity:.55;margin-top:8px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .needle{transition:none;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="eyebrow">Daily Chart · No. <span id="dayNumber">—</span></div>
+    <h1>BEARING</h1>
+    <div class="sub">Guess the mystery country. Each try reveals the compass<br>heading and distance from your guess to the answer.</div>
+  </header>
+
+  <div class="mode-tabs">
+    <button class="mode-tab active" data-mode="iter">Iterative</button>
+    <button class="mode-tab" data-mode="tri">Triangulate</button>
+  </div>
+
+  <div id="iterMode">
+    <div class="compass-wrap">
+      <svg id="compass" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="94" fill="none" stroke="#C89B3C" stroke-width="1.5" opacity="0.5"/>
+        <circle cx="100" cy="100" r="72" fill="none" stroke="#C89B3C" stroke-width="1" opacity="0.3"/>
+        <g id="ticks"></g>
+        <text x="100" y="20" fill="#E3B95A" font-family="IBM Plex Mono" font-size="12" text-anchor="middle">N</text>
+        <text x="185" y="105" fill="#E3B95A" font-family="IBM Plex Mono" font-size="12" text-anchor="middle">E</text>
+        <text x="100" y="188" fill="#E3B95A" font-family="IBM Plex Mono" font-size="12" text-anchor="middle">S</text>
+        <text x="15" y="105" fill="#E3B95A" font-family="IBM Plex Mono" font-size="12" text-anchor="middle">W</text>
+        <g class="needle" id="needle">
+          <polygon points="100,32 108,100 100,90 92,100" fill="#D9603B"/>
+          <polygon points="100,168 108,100 100,110 92,100" fill="#F2E8D5" opacity="0.6"/>
+        </g>
+        <circle cx="100" cy="100" r="5" fill="#0B2B3C" stroke="#C89B3C" stroke-width="1.5"/>
+      </svg>
+      <div class="compass-readout" id="readout">Make a guess to take a bearing</div>
+    </div>
+
+    <div class="card">
+      <div class="input-row">
+        <input type="text" id="guessInput" placeholder="Type a country…" autocomplete="off">
+        <div class="autocomplete" id="autocomplete" style="display:none;"></div>
+      </div>
+      <button class="submit-btn" id="submitBtn">Take Bearing</button>
+      <div class="guesses" id="guesses"></div>
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <div class="footer-row">
+      <button class="ghost-btn" id="shareBtn" style="display:none;">Share Result</button>
+      <button class="ghost-btn" id="statsBtn">Stats</button>
+    </div>
+
+    <div class="stats" id="statsBar"></div>
+  </div>
+
+  <div id="triMode" style="display:none;">
+    <div class="sub" style="margin-bottom:14px;">Three known bearings point to the mystery country.<br>Triangulate the answer — you get <span id="triMaxLabel">4</span> tries.</div>
+    <div class="refs-grid" id="refsGrid"></div>
+
+    <div class="card">
+      <div class="input-row">
+        <input type="text" id="triInput" placeholder="Type a country…" autocomplete="off">
+        <div class="autocomplete" id="triAutocomplete" style="display:none;"></div>
+      </div>
+      <button class="submit-btn" id="triSubmitBtn">Guess Country</button>
+      <div class="tries-left" id="triesLeft"></div>
+      <div class="guesses" id="triGuesses"></div>
+      <div class="msg" id="triMsg"></div>
+    </div>
+
+    <div class="footer-row">
+      <button class="ghost-btn" id="triShareBtn" style="display:none;">Share Result</button>
+      <button class="ghost-btn" id="triStatsBtn">Stats</button>
+    </div>
+
+    <div class="stats" id="triStatsBar"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const COUNTRIES = [
+  ["Afghanistan",34.5,69.2],["Algeria",36.75,3.06],["Argentina",-34.6,-58.4],
+  ["Australia",-35.3,149.1],["Austria",48.2,16.37],["Bangladesh",23.8,90.4],
+  ["Belgium",50.85,4.35],["Bolivia",-16.5,-68.15],["Brazil",-15.8,-47.9],
+  ["Canada",45.4,-75.7],["Chile",-33.45,-70.65],["China",39.9,116.4],
+  ["Colombia",4.7,-74.1],["Cuba",23.13,-82.38],["Denmark",55.68,12.57],
+  ["Ecuador",-0.23,-78.52],["Egypt",30.04,31.24],["Ethiopia",9.02,38.75],
+  ["Finland",60.17,24.94],["France",48.85,2.35],["Germany",52.52,13.4],
+  ["Ghana",5.6,-0.2],["Greece",37.98,23.73],["Hungary",47.5,19.05],
+  ["Iceland",64.15,-21.94],["India",28.6,77.2],["Indonesia",-6.2,106.8],
+  ["Iran",35.7,51.4],["Iraq",33.3,44.4],["Ireland",53.35,-6.26],
+  ["Israel",31.78,35.22],["Italy",41.9,12.5],["Jamaica",18.0,-76.8],
+  ["Japan",35.68,139.65],["Jordan",31.95,35.93],["Kazakhstan",51.17,71.43],
+  ["Kenya",-1.28,36.82],["Kuwait",29.37,47.98],["Libya",32.88,13.19],
+  ["Madagascar",-18.88,47.5],["Malaysia",3.14,101.7],["Mali",12.65,-8.0],
+  ["Mexico",19.43,-99.13],["Mongolia",47.92,106.92],["Morocco",34.02,-6.83],
+  ["Mozambique",-25.97,32.58],["Myanmar",16.87,96.2],["Namibia",-22.57,17.08],
+  ["Nepal",27.7,85.3],["Netherlands",52.37,4.9],["New Zealand",-41.29,174.78],
+  ["Nigeria",9.08,7.4],["Norway",59.91,10.75],["Oman",23.6,58.4],
+  ["Pakistan",33.68,73.05],["Panama",8.98,-79.52],["Paraguay",-25.28,-57.63],
+  ["Peru",-12.05,-77.03],["Philippines",14.6,120.98],["Poland",52.23,21.0],
+  ["Portugal",38.72,-9.14],["Qatar",25.29,51.53],["Romania",44.43,26.1],
+  ["Russia",55.75,37.6],["Saudi Arabia",24.65,46.7],["Senegal",14.72,-17.47],
+  ["Serbia",44.8,20.47],["Singapore",1.35,103.82],["Somalia",2.03,45.34],
+  ["South Africa",-25.75,28.19],["South Korea",37.57,127.0],["Spain",40.42,-3.7],
+  ["Sri Lanka",6.93,79.85],["Sudan",15.6,32.53],["Sweden",59.33,18.06],
+  ["Switzerland",46.95,7.44],["Syria",33.5,36.3],["Tanzania",-6.16,35.75],
+  ["Thailand",13.75,100.5],["Tunisia",36.8,10.18],["Turkey",39.93,32.86],
+  ["Uganda",0.31,32.58],["Ukraine",50.45,30.52],["United Arab Emirates",24.47,54.37],
+  ["United Kingdom",51.5,-0.13],["United States",38.9,-77.03],["Uruguay",-34.9,-56.19],
+  ["Uzbekistan",41.31,69.28],["Venezuela",10.5,-66.9],["Vietnam",21.03,105.85],
+  ["Yemen",15.35,44.2],["Zambia",-15.4,28.28],["Zimbabwe",-17.83,31.05]
+];
+const NAMES = COUNTRIES.map(c=>c[0]);
+const MAX_GUESSES = 6;
+
+// ---- date-seeded RNG so everyone gets the same country each UTC day ----
+function todayKey(){
+  const d = new Date();
+  return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+}
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function seedFromString(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++){ h = Math.imul(31,h) + str.charCodeAt(i) | 0; }
+  return h;
+}
+function pickDaily(){
+  const key = todayKey();
+  const rng = mulberry32(seedFromString(key));
+  const idx = Math.floor(rng()*COUNTRIES.length);
+  return {country: COUNTRIES[idx], key};
+}
+// puzzle "day number" — days since an epoch launch date
+function dayNumber(key){
+  const epoch = Date.UTC(2026,0,1);
+  const [y,m,d] = key.split('-').map(Number);
+  const cur = Date.UTC(y,m-1,d);
+  return Math.floor((cur-epoch)/86400000)+1;
+}
+
+// ---- geo math ----
+function toRad(d){return d*Math.PI/180;}
+function toDeg(r){return r*180/Math.PI;}
+function haversineKm(lat1,lon1,lat2,lon2){
+  const R=6371;
+  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function bearing(lat1,lon1,lat2,lon2){
+  const φ1=toRad(lat1), φ2=toRad(lat2), Δλ=toRad(lon2-lon1);
+  const y=Math.sin(Δλ)*Math.cos(φ2);
+  const x=Math.cos(φ1)*Math.sin(φ2)-Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+  return (toDeg(Math.atan2(y,x))+360)%360;
+}
+function compassLabel(deg){
+  const dirs=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg/22.5)%16];
+}
+
+// ---- state ----
+let secret, dayKey;
+let guesses = [];
+let finished = false;
+
+const els = {
+  input: document.getElementById('guessInput'),
+  auto: document.getElementById('autocomplete'),
+  submit: document.getElementById('submitBtn'),
+  guessesEl: document.getElementById('guesses'),
+  msg: document.getElementById('msg'),
+  needle: document.getElementById('needle'),
+  readout: document.getElementById('readout'),
+  dayNumber: document.getElementById('dayNumber'),
+  shareBtn: document.getElementById('shareBtn'),
+  statsBtn: document.getElementById('statsBtn'),
+  statsBar: document.getElementById('statsBar'),
+  toast: document.getElementById('toast'),
+};
+
+function drawTicks(){
+  const g = document.getElementById('ticks');
+  let html='';
+  for(let i=0;i<360;i+=30){
+    const rad = toRad(i-90);
+    const x1=100+80*Math.cos(rad), y1=100+80*Math.sin(rad);
+    const x2=100+88*Math.cos(rad), y2=100+88*Math.sin(rad);
+    html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#C89B3C" stroke-width="1.5" opacity="0.4"/>`;
+  }
+  g.innerHTML = html;
+}
+drawTicks();
+
+function showToast(text){
+  els.toast.textContent = text;
+  els.toast.classList.add('show');
+  setTimeout(()=>els.toast.classList.remove('show'), 1800);
+}
+
+async function loadState(){
+  try{
+    const res = await window.storage.get('bearing:'+dayKey);
+    if(res && res.value) return JSON.parse(res.value);
+  }catch(e){}
+  return null;
+}
+async function saveState(){
+  try{
+    await window.storage.set('bearing:'+dayKey, JSON.stringify({guesses, finished, won: guesses.some(g=>g.exact)}));
+  }catch(e){}
+}
+async function loadStats(){
+  try{
+    const res = await window.storage.get('bearing:stats');
+    if(res && res.value) return JSON.parse(res.value);
+  }catch(e){}
+  return {played:0, wins:0, streak:0, maxStreak:0, lastWinDay:null};
+}
+async function saveStats(stats){
+  try{ await window.storage.set('bearing:stats', JSON.stringify(stats)); }catch(e){}
+}
+async function renderStats(){
+  const s = await loadStats();
+  els.statsBar.innerHTML = `
+    <div><b>${s.played}</b>Played</div>
+    <div><b>${s.played? Math.round(100*s.wins/s.played):0}%</b>Win rate</div>
+    <div><b>${s.streak}</b>Streak</div>
+    <div><b>${s.maxStreak}</b>Best</div>
+  `;
+}
+
+function renderGuesses(){
+  els.guessesEl.innerHTML = guesses.map((g,i)=>{
+    const dirDeg = g.exact ? 0 : g.bearingDeg;
+    const arrow = `<svg class="mini-arrow" viewBox="0 0 24 24"><g transform="rotate(${dirDeg} 12 12)"><polygon points="12,3 16,14 12,11 8,14" fill="${g.exact?'#fff':'#0B2B3C'}"/></g></svg>`;
+    return `<div class="guess-row ${g.exact?'correct':''}">
+      <div class="n">${i+1}</div>
+      <div class="name">${g.name}</div>
+      <div class="dist">${g.exact ? 'MATCH' : Math.round(g.distKm).toLocaleString()+' km'}</div>
+      ${arrow}
+    </div>`;
+  }).join('');
+}
+
+function updateCompass(deg, label){
+  els.needle.style.transform = `rotate(${deg}deg)`;
+  els.readout.textContent = label;
+}
+
+function filterAutocomplete(){
+  const val = els.input.value.trim().toLowerCase();
+  const already = new Set(guesses.map(g=>g.name));
+  if(!val){ els.auto.style.display='none'; return; }
+  const matches = NAMES.filter(n=>n.toLowerCase().includes(val) && !already.has(n)).slice(0,7);
+  if(!matches.length){ els.auto.style.display='none'; return; }
+  els.auto.innerHTML = matches.map(n=>`<div data-name="${n}">${n}</div>`).join('');
+  els.auto.style.display='block';
+}
+els.input.addEventListener('input', filterAutocomplete);
+els.auto.addEventListener('click', e=>{
+  const name = e.target.getAttribute('data-name');
+  if(name){ els.input.value = name; els.auto.style.display='none'; }
+});
+document.addEventListener('click', e=>{
+  if(!els.auto.contains(e.target) && e.target!==els.input) els.auto.style.display='none';
+});
+els.input.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); submitGuess(); } });
+els.submit.addEventListener('click', submitGuess);
+
+async function submitGuess(){
+  if(finished) return;
+  const raw = els.input.value.trim();
+  const match = COUNTRIES.find(c=>c[0].toLowerCase()===raw.toLowerCase());
+  if(!match){ els.msg.textContent = "Pick a country from the list."; return; }
+  if(guesses.some(g=>g.name===match[0])){ els.msg.textContent = "Already tried that one."; return; }
+
+  els.msg.textContent = '';
+  const [name, lat, lon] = match;
+  const [, slat, slon] = secret;
+  const exact = name === secret[3];
+  const distKm = haversineKm(lat,lon,slat,slon);
+  const bDeg = exact ? 0 : bearing(lat,lon,slat,slon);
+
+  guesses.push({name, distKm, bearingDeg:bDeg, exact});
+  els.input.value=''; els.auto.style.display='none';
+  renderGuesses();
+  updateCompass(bDeg, exact ? 'On the mark' : `${compassLabel(bDeg)} · ${Math.round(bDeg)}°`);
+
+  if(exact || guesses.length>=MAX_GUESSES){
+    finished = true;
+    await saveState();
+    await finishGame(exact);
+  } else {
+    await saveState();
+  }
+}
+
+async function finishGame(won){
+  els.input.disabled = true;
+  els.submit.disabled = true;
+  els.shareBtn.style.display='inline-block';
+  els.msg.textContent = won
+    ? `Found it in ${guesses.length} bearing${guesses.length>1?'s':''}: ${secret[3]}.`
+    : `Out of tries. The answer was ${secret[3]}.`;
+
+  const stats = await loadStats();
+  // only count once per day
+  if(!stats.lastWinDay || stats.lastWinDay !== dayKey){
+    stats.played += 1;
+    if(won){
+      stats.wins += 1;
+      stats.streak = (stats.lastWinDay && isYesterday(stats.lastWinDay)) ? stats.streak+1 : 1;
+      stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
+    } else {
+      stats.streak = 0;
+    }
+    stats.lastWinDay = dayKey;
+    await saveStats(stats);
+  }
+  renderStats();
+}
+function isYesterday(key){
+  const [y,m,d]=key.split('-').map(Number);
+  const prev = new Date(Date.UTC(y,m-1,d));
+  prev.setUTCDate(prev.getUTCDate()+1);
+  return todayKey()===`${prev.getUTCFullYear()}-${String(prev.getUTCMonth()+1).padStart(2,'0')}-${String(prev.getUTCDate()).padStart(2,'0')}`;
+}
+
+els.shareBtn.addEventListener('click', ()=>{
+  const n = dayNumber(dayKey);
+  const rows = guesses.map(g=>{
+    if(g.exact) return '🟩🟩🟩🟩🟩';
+    const closeness = Math.max(0, 5 - Math.floor(g.distKm/2500));
+    return '🟨'.repeat(closeness) + '⬛'.repeat(5-closeness);
+  });
+  const text = `BEARING #${n} ${guesses.some(g=>g.exact)?guesses.length:'X'}/${MAX_GUESSES}\n${rows.join('\n')}`;
+  navigator.clipboard?.writeText(text).then(()=>showToast('Copied to clipboard'));
+});
+els.statsBtn.addEventListener('click', renderStats);
+
+async function init(){
+  const picked = pickDaily();
+  secret = [...picked.country, picked.country[0]]; // [name, lat, lon, name]
+  dayKey = picked.key;
+  els.dayNumber.textContent = dayNumber(dayKey);
+
+  const saved = await loadState();
+  if(saved){
+    guesses = saved.guesses || [];
+    finished = saved.finished || false;
+    renderGuesses();
+    if(guesses.length){
+      const last = guesses[guesses.length-1];
+      updateCompass(last.exact?0:last.bearingDeg, last.exact?'On the mark':`${compassLabel(last.bearingDeg)} · ${Math.round(last.bearingDeg)}°`);
+    }
+    if(finished){
+      els.input.disabled = true; els.submit.disabled = true;
+      els.shareBtn.style.display='inline-block';
+      els.msg.textContent = guesses.some(g=>g.exact)
+        ? `Found it in ${guesses.length} bearing${guesses.length>1?'s':''}: ${secret[3]}.`
+        : `Out of tries. The answer was ${secret[3]}.`;
+    }
+  }
+  renderStats();
+  await initTri();
+}
+init();
+
+/* ================= TRIANGULATE MODE ================= */
+const REFERENCE_POOL = [
+  "United States","United Kingdom","Russia","Australia","Egypt","Brazil","Japan",
+  "South Africa","India","Canada","France","China","Mexico","Kenya","Norway",
+  "Argentina","Indonesia","Turkey","Nigeria","New Zealand"
+];
+const MAX_TRI_GUESSES = 4;
+let triRefs = [];        // [[name,lat,lon,bearingDeg], ...]
+let triGuesses = [];
+let triFinished = false;
+
+document.getElementById('triMaxLabel').textContent = MAX_TRI_GUESSES;
+
+document.querySelectorAll('.mode-tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.mode-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const mode = btn.getAttribute('data-mode');
+    document.getElementById('iterMode').style.display = mode==='iter' ? '' : 'none';
+    document.getElementById('triMode').style.display = mode==='tri' ? '' : 'none';
+  });
+});
+
+function pickReferences(key, secretName){
+  const rng = mulberry32(seedFromString(key+'::refs'));
+  const pool = REFERENCE_POOL.filter(n=>n!==secretName);
+  // shuffle (Fisher-Yates with seeded rng)
+  const arr = [...pool];
+  for(let i=arr.length-1;i>0;i--){
+    const j = Math.floor(rng()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr.slice(0,3).map(name=>COUNTRIES.find(c=>c[0]===name));
+}
+
+function miniCompassSVG(id, deg){
+  return `
+  <svg viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#C89B3C" stroke-width="1" opacity="0.5"/>
+    <text x="50" y="14" fill="#E3B95A" font-family="IBM Plex Mono" font-size="9" text-anchor="middle">N</text>
+    <g transform="rotate(${deg} 50 50)">
+      <polygon points="50,16 55,50 50,44 45,50" fill="#D9603B"/>
+      <polygon points="50,84 55,50 50,56 45,50" fill="#F2E8D5" opacity="0.55"/>
+    </g>
+    <circle cx="50" cy="50" r="3" fill="#0B2B3C" stroke="#C89B3C" stroke-width="1"/>
+  </svg>`;
+}
+
+function renderRefs(){
+  document.getElementById('refsGrid').innerHTML = triRefs.map(r=>`
+    <div class="ref-card">
+      ${miniCompassSVG(r[0], r[3])}
+      <div class="ref-name">${r[0]}</div>
+      <div class="ref-deg">${Math.round(r[3])}° ${compassLabel(r[3])}</div>
+    </div>
+  `).join('');
+}
+
+async function loadTriState(){
+  try{
+    const res = await window.storage.get('bearing:tri:'+dayKey);
+    if(res && res.value) return JSON.parse(res.value);
+  }catch(e){}
+  return null;
+}
+async function saveTriState(){
+  try{
+    await window.storage.set('bearing:tri:'+dayKey, JSON.stringify({guesses:triGuesses, finished:triFinished}));
+  }catch(e){}
+}
+async function loadTriStats(){
+  try{
+    const res = await window.storage.get('bearing:tri:stats');
+    if(res && res.value) return JSON.parse(res.value);
+  }catch(e){}
+  return {played:0, wins:0, streak:0, maxStreak:0, lastWinDay:null};
+}
+async function saveTriStats(stats){
+  try{ await window.storage.set('bearing:tri:stats', JSON.stringify(stats)); }catch(e){}
+}
+async function renderTriStats(){
+  const s = await loadTriStats();
+  document.getElementById('triStatsBar').innerHTML = `
+    <div><b>${s.played}</b>Played</div>
+    <div><b>${s.played? Math.round(100*s.wins/s.played):0}%</b>Win rate</div>
+    <div><b>${s.streak}</b>Streak</div>
+    <div><b>${s.maxStreak}</b>Best</div>
+  `;
+}
+
+function renderTriGuesses(){
+  document.getElementById('triGuesses').innerHTML = triGuesses.map((g,i)=>{
+    const arrow = `<svg class="mini-arrow" viewBox="0 0 24 24"><g transform="rotate(${g.exact?0:g.bearingDeg} 12 12)"><polygon points="12,3 16,14 12,11 8,14" fill="${g.exact?'#fff':'#0B2B3C'}"/></g></svg>`;
+    return `<div class="guess-row ${g.exact?'correct':''}">
+      <div class="n">${i+1}</div>
+      <div class="name">${g.name}</div>
+      <div class="dist">${g.exact ? 'MATCH' : Math.round(g.distKm).toLocaleString()+' km'}</div>
+      ${arrow}
+    </div>`;
+  }).join('');
+  document.getElementById('triesLeft').textContent =
+    triFinished ? '' : `${MAX_TRI_GUESSES - triGuesses.length} tries left`;
+}
+
+const triInput = document.getElementById('triInput');
+const triAuto = document.getElementById('triAutocomplete');
+function filterTriAutocomplete(){
+  const val = triInput.value.trim().toLowerCase();
+  const already = new Set(triGuesses.map(g=>g.name));
+  if(!val){ triAuto.style.display='none'; return; }
+  const matches = NAMES.filter(n=>n.toLowerCase().includes(val) && !already.has(n)).slice(0,7);
+  if(!matches.length){ triAuto.style.display='none'; return; }
+  triAuto.innerHTML = matches.map(n=>`<div data-name="${n}">${n}</div>`).join('');
+  triAuto.style.display='block';
+}
+triInput.addEventListener('input', filterTriAutocomplete);
+triAuto.addEventListener('click', e=>{
+  const name = e.target.getAttribute('data-name');
+  if(name){ triInput.value = name; triAuto.style.display='none'; }
+});
+document.addEventListener('click', e=>{
+  if(!triAuto.contains(e.target) && e.target!==triInput) triAuto.style.display='none';
+});
+triInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); submitTriGuess(); } });
+document.getElementById('triSubmitBtn').addEventListener('click', submitTriGuess);
+
+async function submitTriGuess(){
+  if(triFinished) return;
+  const raw = triInput.value.trim();
+  const match = COUNTRIES.find(c=>c[0].toLowerCase()===raw.toLowerCase());
+  const triMsg = document.getElementById('triMsg');
+  if(!match){ triMsg.textContent = "Pick a country from the list."; return; }
+  if(triGuesses.some(g=>g.name===match[0])){ triMsg.textContent = "Already tried that one."; return; }
+
+  triMsg.textContent = '';
+  const [name, lat, lon] = match;
+  const [, slat, slon] = secret;
+  const exact = name === secret[3];
+  const distKm = haversineKm(lat,lon,slat,slon);
+  const bDeg = exact ? 0 : bearing(lat,lon,slat,slon);
+
+  triGuesses.push({name, distKm, bearingDeg:bDeg, exact});
+  triInput.value=''; triAuto.style.display='none';
+  renderTriGuesses();
+
+  if(exact || triGuesses.length>=MAX_TRI_GUESSES){
+    triFinished = true;
+    await saveTriState();
+    await finishTriGame(exact);
+  } else {
+    await saveTriState();
+  }
+}
+
+async function finishTriGame(won){
+  triInput.disabled = true;
+  document.getElementById('triSubmitBtn').disabled = true;
+  document.getElementById('triShareBtn').style.display='inline-block';
+  document.getElementById('triMsg').textContent = won
+    ? `Triangulated in ${triGuesses.length} guess${triGuesses.length>1?'es':''}: ${secret[3]}.`
+    : `Out of tries. The answer was ${secret[3]}.`;
+
+  const stats = await loadTriStats();
+  if(!stats.lastWinDay || stats.lastWinDay !== dayKey){
+    stats.played += 1;
+    if(won){
+      stats.wins += 1;
+      stats.streak = (stats.lastWinDay && isYesterday(stats.lastWinDay)) ? stats.streak+1 : 1;
+      stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
+    } else {
+      stats.streak = 0;
+    }
+    stats.lastWinDay = dayKey;
+    await saveTriStats(stats);
+  }
+  renderTriStats();
+}
+
+document.getElementById('triShareBtn').addEventListener('click', ()=>{
+  const n = dayNumber(dayKey);
+  const rows = triGuesses.map(g=>{
+    if(g.exact) return '🟩🟩🟩🟩🟩';
+    const closeness = Math.max(0, 5 - Math.floor(g.distKm/2500));
+    return '🟨'.repeat(closeness) + '⬛'.repeat(5-closeness);
+  });
+  const text = `BEARING (Triangulate) #${n} ${triGuesses.some(g=>g.exact)?triGuesses.length:'X'}/${MAX_TRI_GUESSES}\n${rows.join('\n')}`;
+  navigator.clipboard?.writeText(text).then(()=>showToast('Copied to clipboard'));
+});
+document.getElementById('triStatsBtn').addEventListener('click', renderTriStats);
+
+async function initTri(){
+  triRefs = pickReferences(dayKey, secret[3]).map(r=>{
+    const bDeg = bearing(r[1], r[2], secret[1], secret[2]);
+    return [r[0], r[1], r[2], bDeg];
+  });
+  renderRefs();
+
+  const saved = await loadTriState();
+  if(saved){
+    triGuesses = saved.guesses || [];
+    triFinished = saved.finished || false;
+    renderTriGuesses();
+    if(triFinished){
+      triInput.disabled = true;
+      document.getElementById('triSubmitBtn').disabled = true;
+      document.getElementById('triShareBtn').style.display='inline-block';
+      document.getElementById('triMsg').textContent = triGuesses.some(g=>g.exact)
+        ? `Triangulated in ${triGuesses.length} guess${triGuesses.length>1?'es':''}: ${secret[3]}.`
+        : `Out of tries. The answer was ${secret[3]}.`;
+    }
+  }
+  renderTriStats();
+}
+</script>
+</body>
+</html>
