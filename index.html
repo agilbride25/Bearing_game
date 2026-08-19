@@ -196,6 +196,26 @@
   @media (prefers-reduced-motion: reduce){
     .needle{transition:none;}
   }
+  .unit-toggle{
+  position:fixed;
+  bottom:14px;left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  background:var(--deep);
+  border:1px solid var(--brass);
+  border-radius:20px;
+  padding:3px;
+  z-index:20;
+  box-shadow:0 4px 14px rgba(0,0,0,0.4);
+}
+.unit-btn{
+  border:none;background:transparent;
+  color:var(--parchment);opacity:.55;
+  font-family:'IBM Plex Mono';font-size:11px;letter-spacing:.05em;
+  padding:6px 14px;border-radius:16px;cursor:pointer;
+}
+.unit-btn.active{background:var(--brass);color:var(--deep);opacity:1;font-weight:600;
+}
 </style>
 </head>
 <body>
@@ -246,6 +266,10 @@
     </div>
 
     <div class="stats" id="statsBar"></div>
+  </div>
+  <div class="unit-toggle">
+  <button class="unit-btn active" id="unitKmBtn" data-unit="km">KM</button>
+  <button class="unit-btn" id="unitMiBtn" data-unit="mi">MI</button>
   </div>
 
   <div id="triMode" style="display:none;">
@@ -362,6 +386,32 @@ function compassLabel(deg){
   const dirs=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
   return dirs[Math.round(deg/22.5)%16];
 }
+let unit = 'km';
+function formatDistance(km){
+  if(unit === 'mi'){
+    return Math.round(km * 0.621371).toLocaleString() + ' mi';
+  }
+  return Math.round(km).toLocaleString() + ' km';
+}
+async function loadUnit(){
+  try{
+    const res = await window.storage.get('bearing:unit');
+    if(res && res.value) return res.value;
+  }catch(e){}
+  return 'km';
+}
+async function saveUnit(u){
+  try{ await window.storage.set('bearing:unit', u); }catch(e){}
+}
+function setUnit(u){
+  unit = u;
+  document.getElementById('unitKmBtn').classList.toggle('active', u==='km');
+  document.getElementById('unitMiBtn').classList.toggle('active', u==='mi');
+  renderGuesses();
+  renderTriGuesses();
+}
+document.getElementById('unitKmBtn').addEventListener('click', ()=>{ setUnit('km'); saveUnit('km'); });
+document.getElementById('unitMiBtn').addEventListener('click', ()=>{ setUnit('mi'); saveUnit('mi'); });
 
 // ---- state ----
 let secret, dayKey;
@@ -441,7 +491,7 @@ function renderGuesses(){
     return `<div class="guess-row ${g.exact?'correct':''}">
       <div class="n">${i+1}</div>
       <div class="name">${g.name}</div>
-      <div class="dist">${g.exact ? 'MATCH' : Math.round(g.distKm).toLocaleString()+' km'}</div>
+      <div class="dist">${g.exact ? 'MATCH' : formatDistance(g.distKm)}</div>
       ${arrow}
     </div>`;
   }).join('');
@@ -544,6 +594,9 @@ els.shareBtn.addEventListener('click', ()=>{
 els.statsBtn.addEventListener('click', renderStats);
 
 async function init(){
+  unit = await loadUnit();
+  document.getElementById('unitKmBtn').classList.toggle('active', unit==='km');
+  document.getElementById('unitMiBtn').classList.toggle('active', unit==='mi');
   const picked = pickDaily();
   secret = [...picked.country, picked.country[0]]; // [name, lat, lon, name]
   dayKey = picked.key;
@@ -667,7 +720,7 @@ function renderTriGuesses(){
     return `<div class="guess-row ${g.exact?'correct':''}">
       <div class="n">${i+1}</div>
       <div class="name">${g.name}</div>
-      <div class="dist">${g.exact ? 'MATCH' : Math.round(g.distKm).toLocaleString()+' km'}</div>
+      <div class="dist">${g.exact ? 'MATCH' : formatDistance(g.distKm)}</div>
       ${arrow}
     </div>`;
   }).join('');
