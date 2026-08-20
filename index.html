@@ -382,9 +382,9 @@ function seedFromString(str){
   for(let i=0;i<str.length;i++){ h = Math.imul(31,h) + str.charCodeAt(i) | 0; }
   return h;
 }
-function pickDaily(){
+function pickDaily(suffix=''){
   const key = todayKey();
-  const rng = mulberry32(seedFromString(key));
+  const rng = mulberry32(seedFromString(key+suffix));
   const idx = Math.floor(rng()*COUNTRIES.length);
   return {country: COUNTRIES[idx], key};
 }
@@ -678,6 +678,7 @@ const REFERENCE_POOL = [
   "Argentina","Indonesia","Turkey","Nigeria","New Zealand"
 ];
 const MAX_TRI_GUESSES = 4;
+let triSecret;
 let triRefs = [];        // [[name,lat,lon,bearingDeg], ...]
 let triGuesses = [];
 let triFinished = false;
@@ -817,8 +818,8 @@ async function submitTriGuess(){
 
   triMsg.textContent = '';
   const [name, lat, lon] = match;
-  const [, slat, slon] = secret;
-  const exact = name === secret[3];
+  const [, slat, slon] = triSecret;
+  const exact = name === triSecret[3];
   const distKm = haversineKm(lat,lon,slat,slon);
   const bDeg = exact ? 0 : bearing(lat,lon,slat,slon);
 
@@ -858,8 +859,10 @@ document.getElementById('triShareBtn').addEventListener('click', ()=>{
 document.getElementById('triStatsBtn').addEventListener('click', renderTriStats);
 
 async function initTri(){
-  triRefs = pickReferences(dayKey, secret[3]).map(r=>{
-    const bDeg = bearing(r[1], r[2], secret[1], secret[2]);
+  const pickedTri = pickDaily('::tri');
+  triSecret = [...pickedTri.country, pickedTri.country[0]];
+  triRefs = pickReferences(dayKey, triSecret[3]).map(r=>{
+    const bDeg = bearing(r[1], r[2], triSecret[1], triSecret[2]);
     return [r[0], r[1], r[2], bDeg];
   });
   renderRefs();
