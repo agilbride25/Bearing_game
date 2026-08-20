@@ -1,0 +1,8 @@
+name = "bearing-game"
+pages_build_output_dir = "."
+compatibility_date = "2026-08-20"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bearing_game_db"
+database_id = "9d512a6e-c1e7-41e7-af2d-cf046bd2fea0"

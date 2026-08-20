@@ -8,6 +8,7 @@
 <title>BEARING — Daily Geography Game</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --ink:#0B2B3C;
@@ -226,10 +227,25 @@
     <div class="sub">Guess the mystery country. Each try reveals the compass<br>heading and distance from your guess to the answer.</div>
   </header>
 
-  <div class="mode-tabs">
+<!--Google sign in button-->
+<div id="googleBtnWrap">
+  <div id="g_id_onload"
+       data-client_id="47080015432-p9h6lmsfjt2hs73rcpob9qe596jk6rp9.apps.googleusercontent.com"
+       data-callback="handleGoogleLogin">
+  </div>
+  <div class="g_id_signin" data-type="standard"></div>
+</div>
+<div id="signedInWrap" style="display:none;">
+  <span id="signedInName"></span>
+  <button id="signOutBtn" class="ghost-btn">Sign out</button>
+</div>
+
+
+<div class="mode-tabs">
     <button class="mode-tab active" data-mode="iter">Iterative</button>
     <button class="mode-tab" data-mode="tri">Triangulate</button>
-  </div>
+</div>
+
 
   <div id="iterMode">
     <div class="compass-wrap">
@@ -382,6 +398,37 @@ function bearing(lat1,lon1,lat2,lon2){
   const x=Math.cos(φ1)*Math.sin(φ2)-Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
   return (toDeg(Math.atan2(y,x))+360)%360;
 }
+// google sign in 
+function handleGoogleLogin(response) {
+  fetch('/api/auth/google', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ credential: response.credential })
+  }).then(() => location.reload());
+}
+
+let isSignedIn = false;
+
+async function checkAuth(){
+  try{
+    const res = await fetch('/api/me');
+    if(res.ok){
+      const data = await res.json();
+      if(data){
+        isSignedIn = true;
+        document.getElementById('signedInName').textContent = `Signed in as ${data.displayName || 'Player'}`;
+      }
+    }
+  }catch(e){}
+  document.getElementById('googleBtnWrap').style.display = isSignedIn ? 'none' : '';
+  document.getElementById('signedInWrap').style.display = isSignedIn ? 'flex' : 'none';
+}
+
+document.getElementById('signOutBtn').addEventListener('click', async ()=>{
+  try{ await fetch('/api/auth/logout', { method: 'POST' }); }catch(e){}
+  location.reload();
+});
+
 function compassLabel(deg){
   const dirs=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
   return dirs[Math.round(deg/22.5)%16];
@@ -393,15 +440,11 @@ function formatDistance(km){
   }
   return Math.round(km).toLocaleString() + ' km';
 }
-async function loadUnit(){
-  try{
-    const res = await window.storage.get('bearing:unit');
-    if(res && res.value) return res.value;
-  }catch(e){}
-  return 'km';
+function loadUnit(){
+  try{ return localStorage.getItem('bearing:unit') || 'km'; }catch(e){ return 'km'; }
 }
-async function saveUnit(u){
-  try{ await window.storage.set('bearing:unit', u); }catch(e){}
+function saveUnit(u){
+  try{ localStorage.setItem('bearing:unit', u); }catch(e){}
 }
 function setUnit(u){
   unit = u;
@@ -454,26 +497,37 @@ function showToast(text){
 
 async function loadState(){
   try{
-    const res = await window.storage.get('bearing:'+dayKey);
-    if(res && res.value) return JSON.parse(res.value);
-  }catch(e){}
-  return null;
+    const res = await fetch(`/api/guess?mode=iter&date=${dayKey}`);
+    if(!res.ok) return null;
+    return await res.json();
+  }catch(e){ return null; }
 }
 async function saveState(){
   try{
-    await window.storage.set('bearing:'+dayKey, JSON.stringify({guesses, finished, won: guesses.some(g=>g.exact)}));
+    await fetch('/api/guess', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        mode: 'iter',
+        date: dayKey,
+        guesses,
+        finished,
+        won: guesses.some(g=>g.exact)
+      })
+    });
   }catch(e){}
 }
 async function loadStats(){
   try{
-    const res = await window.storage.get('bearing:stats');
-    if(res && res.value) return JSON.parse(res.value);
-  }catch(e){}
-  return {played:0, wins:0, streak:0, maxStreak:0, lastWinDay:null};
+    const res = await fetch('/api/stats?mode=iter');
+    if(!res.ok) return {played:0, wins:0, streak:0, maxStreak:0};
+    const data = await res.json();
+    return data || {played:0, wins:0, streak:0, maxStreak:0};
+  }catch(e){
+    return {played:0, wins:0, streak:0, maxStreak:0};
+  }
 }
-async function saveStats(stats){
-  try{ await window.storage.set('bearing:stats', JSON.stringify(stats)); }catch(e){}
-}
+
 async function renderStats(){
   const s = await loadStats();
   els.statsBar.innerHTML = `
@@ -557,28 +611,7 @@ async function finishGame(won){
   els.msg.textContent = won
     ? `Found it in ${guesses.length} bearing${guesses.length>1?'s':''}: ${secret[3]}.`
     : `Out of tries. The answer was ${secret[3]}.`;
-
-  const stats = await loadStats();
-  // only count once per day
-  if(!stats.lastWinDay || stats.lastWinDay !== dayKey){
-    stats.played += 1;
-    if(won){
-      stats.wins += 1;
-      stats.streak = (stats.lastWinDay && isYesterday(stats.lastWinDay)) ? stats.streak+1 : 1;
-      stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
-    } else {
-      stats.streak = 0;
-    }
-    stats.lastWinDay = dayKey;
-    await saveStats(stats);
-  }
   renderStats();
-}
-function isYesterday(key){
-  const [y,m,d]=key.split('-').map(Number);
-  const prev = new Date(Date.UTC(y,m-1,d));
-  prev.setUTCDate(prev.getUTCDate()+1);
-  return todayKey()===`${prev.getUTCFullYear()}-${String(prev.getUTCMonth()+1).padStart(2,'0')}-${String(prev.getUTCDate()).padStart(2,'0')}`;
 }
 
 els.shareBtn.addEventListener('click', ()=>{
@@ -594,6 +627,7 @@ els.shareBtn.addEventListener('click', ()=>{
 els.statsBtn.addEventListener('click', renderStats);
 
 async function init(){
+  await checkAuth();
   unit = await loadUnit();
   document.getElementById('unitKmBtn').classList.toggle('active', unit==='km');
   document.getElementById('unitMiBtn').classList.toggle('active', unit==='mi');
@@ -684,25 +718,35 @@ function renderRefs(){
 
 async function loadTriState(){
   try{
-    const res = await window.storage.get('bearing:tri:'+dayKey);
-    if(res && res.value) return JSON.parse(res.value);
-  }catch(e){}
-  return null;
+    const res = await fetch(`/api/guess?mode=tri&date=${dayKey}`);
+    if(!res.ok) return null;
+    return await res.json();
+  }catch(e){ return null; }
 }
 async function saveTriState(){
   try{
-    await window.storage.set('bearing:tri:'+dayKey, JSON.stringify({guesses:triGuesses, finished:triFinished}));
+    await fetch('/api/guess', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        mode: 'tri',
+        date: dayKey,
+        guesses: triGuesses,
+        finished: triFinished,
+        won: triGuesses.some(g=>g.exact)
+      })
+    });
   }catch(e){}
 }
 async function loadTriStats(){
   try{
-    const res = await window.storage.get('bearing:tri:stats');
-    if(res && res.value) return JSON.parse(res.value);
-  }catch(e){}
-  return {played:0, wins:0, streak:0, maxStreak:0, lastWinDay:null};
-}
-async function saveTriStats(stats){
-  try{ await window.storage.set('bearing:tri:stats', JSON.stringify(stats)); }catch(e){}
+    const res = await fetch('/api/stats?mode=tri');
+    if(!res.ok) return {played:0, wins:0, streak:0, maxStreak:0};
+    const data = await res.json();
+    return data || {played:0, wins:0, streak:0, maxStreak:0};
+  }catch(e){
+    return {played:0, wins:0, streak:0, maxStreak:0};
+  }
 }
 async function renderTriStats(){
   const s = await loadTriStats();
@@ -785,20 +829,6 @@ async function finishTriGame(won){
   document.getElementById('triMsg').textContent = won
     ? `Triangulated in ${triGuesses.length} guess${triGuesses.length>1?'es':''}: ${secret[3]}.`
     : `Out of tries. The answer was ${secret[3]}.`;
-
-  const stats = await loadTriStats();
-  if(!stats.lastWinDay || stats.lastWinDay !== dayKey){
-    stats.played += 1;
-    if(won){
-      stats.wins += 1;
-      stats.streak = (stats.lastWinDay && isYesterday(stats.lastWinDay)) ? stats.streak+1 : 1;
-      stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
-    } else {
-      stats.streak = 0;
-    }
-    stats.lastWinDay = dayKey;
-    await saveTriStats(stats);
-  }
   renderTriStats();
 }
 // test comment
