@@ -194,20 +194,32 @@
     text-align:center;font-size:11px;color:var(--ink);opacity:.55;margin-top:8px;
   }
 
-  @media (prefers-reduced-motion: reduce){
-    .needle{transition:none;}
-  }
-  .unit-toggle{
+@media (max-width:400px){
+  body{padding-bottom:130px;}
+}
+.bottom-controls{
   position:fixed;
   bottom:14px;left:50%;
   transform:translateX(-50%);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  z-index:20;
+}
+.unit-toggle{
   display:flex;
   background:var(--deep);
   border:1px solid var(--brass);
   border-radius:20px;
   padding:3px;
-  z-index:20;
   box-shadow:0 4px 14px rgba(0,0,0,0.4);
+}
+.account-row{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:10px;
 }
 .unit-btn{
   border:none;background:transparent;
@@ -226,20 +238,6 @@
     <h1>BEARING</h1>
     <div class="sub">Guess the mystery country. Each try reveals the compass<br>heading and distance from your guess to the answer.</div>
   </header>
-
-<!--Google sign in button-->
-<div id="googleBtnWrap">
-  <div id="g_id_onload"
-       data-client_id="47080015432-p9h6lmsfjt2hs73rcpob9qe596jk6rp9.apps.googleusercontent.com"
-       data-callback="handleGoogleLogin">
-  </div>
-  <div class="g_id_signin" data-type="standard"></div>
-</div>
-<div id="signedInWrap" style="display:none;">
-  <span id="signedInName"></span>
-  <button id="signOutBtn" class="ghost-btn">Sign out</button>
-</div>
-
 
 <div class="mode-tabs">
     <button class="mode-tab active" data-mode="iter">Iterative</button>
@@ -283,10 +281,25 @@
 
     <div class="stats" id="statsBar"></div>
   </div>
+<div class="bottom-controls">
   <div class="unit-toggle">
-  <button class="unit-btn active" id="unitKmBtn" data-unit="km">KM</button>
-  <button class="unit-btn" id="unitMiBtn" data-unit="mi">MI</button>
+    <button class="unit-btn active" id="unitKmBtn" data-unit="km">KM</button>
+    <button class="unit-btn" id="unitMiBtn" data-unit="mi">MI</button>
   </div>
+  <div class="account-row">
+    <div id="googleBtnWrap">
+      <div id="g_id_onload"
+           data-client_id="47080015432-p9h6lmsfjt2hs73rcpob9qe596jk6rp9.apps.googleusercontent.com"
+           data-callback="handleGoogleLogin">
+      </div>
+      <div class="g_id_signin" data-type="standard"></div>
+    </div>
+    <div id="signedInWrap" style="display:none;">
+      <span id="signedInName"></span>
+      <button id="signOutBtn" class="ghost-btn">Sign out</button>
+    </div>
+  </div>
+</div>
 
   <div id="triMode" style="display:none;">
     <div class="sub" style="margin-bottom:14px;">Three known bearings point to the mystery country.<br>Triangulate the answer — you get <span id="triMaxLabel">4</span> tries.</div>
